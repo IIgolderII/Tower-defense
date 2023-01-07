@@ -49,7 +49,7 @@
                 if (this.type == "simpleTurret") {
                     let enemyOnLine = false
                     enemyArray.forEach(element => {
-                        if (element.y == this.y) {
+                        if (element.y == this.y && element.started) {
                             enemyOnLine = true
                         }
                     })
@@ -91,11 +91,17 @@
             update() {
                 this.x += this.speed
                 enemyArray.forEach(element => {
-                    if (this.x + this.width >= element.x) {
+                    if (this.x + this.width >= element.x && element.started) {
                         element.dealDamage(this.damage)
                         const index = bulletArray.indexOf(this);
                         if (index > -1) {
                             bulletArray.splice(index, 1);
+                        }
+                        if (this.x > 1000) {
+                            const index = bulletArray.indexOf(this);
+                            if (index > -1) {
+                                bulletArray.splice(index, 1);
+                            }
                         }
                     }
                 })
@@ -228,10 +234,12 @@
                         ctx.drawImage(spriteSimpleTurret, this.x, this.y, this.width, this.height);
                         break;
 
-
                     default:
                         break;
                 }
+                ctx.fillStyle = "rgb(0, 0, 0)"
+                ctx.font = '32px serif'
+                ctx.fillText(this.price, 50 - this.price.toString().length * 8, this.originalY + this.height+25)
                 if (!this.afordable) {
                     ctx.fillStyle = "rgba(250, 250, 250, .7)"
                     ctx.fillRect(this.x, this.y, this.width, this.height)
@@ -306,11 +314,11 @@
             new shop("simpleTurret", 20, 200)
         ]
 
-        var enemyArray = [new enemy(Math.floor(Math.random() * 5), "basic", 0), new enemy(Math.floor(Math.random() * 5), "basic", 25)]
+        var enemyArray = [new enemy(Math.floor(Math.random() * 5), "basic", 15), new enemy(Math.floor(Math.random() * 5), "basic", 25)]
 
         var bulletArray = []
 
-        var money = 20
+        var money = 10
         var addMoney = 1
         var moneyTimer = Date.now()
 
