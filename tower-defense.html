@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower defense</title>
+</head>
+
+<body>
+    <canvas id="towerDefense" width="1000" height="500"
+        style="position: absolute; left: 50%; top:50%; transform: translate(-50%, -50%); border: solid 5px black; border-radius: 10px;">
+    </canvas>
+    <script>
+        const canvas = document.getElementById("towerDefense")
+        const ctx = canvas.getContext("2d")
+
+        const spriteMoneyGenerator = new Image();
+        spriteMoneyGenerator.src = 'Images/money generator.png';
+
+        const spriteSimpleTurret = new Image();
+        spriteSimpleTurret.src = 'Images/simple turret.png';
+
+
+        class tile {
+            constructor(X, Y, COLOR) {
+                this.x = X
+                this.y = Y
+                this.width = 100
+                this.color = COLOR
+                this.type = "empty"
+                this.timeLastShot = Date.now()
+                this.fireRate = 2
+            }
+
+            changeType(TYPE) {
+                this.type = TYPE
+            }
+
+            shoot() {
+                bulletArray[bulletArray.length] = new bullet(this.x + this.width, this.y, 10, 20, 1)
+            }
+
+            update() {
+                if (this.type == "moneyGenerator") {
+                    addMoney++
+                }
+                if (this.type == "simpleTurret") {
+                    let enemyOnLine = false
+                    enemyArray.forEach(element => {
+                        if (element.y == this.y) {
+                            enemyOnLine = true
+                        }
+                    })
+                    if (enemyOnLine && this.timeLastShot < Date.now() - this.fireRate * 1000) {
+                        this.shoot()
+                        this.timeLastShot = Date.now()
+                    }
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = this.color
+                ctx.fillRect(this.x, this.y * 100, this.width, this.width)
+                switch (this.type) {
+                    case "moneyGenerator":
+                        ctx.drawImage(spriteMoneyGenerator, this.x + this.width * .2, this.y * 100 + this.width * .2, this.width * .6, this.width * .6);
+                        break;
+
+                    case "simpleTurret":
+                        ctx.drawImage(spriteSimpleTurret, this.x + this.width * .2, this.y * 100 + this.width * .2, this.width * .6, this.width * .6);
+                        break;
+
+
+                    default:
+                        break;
+                }
+            }
+        }
+
+        class bullet {
+            constructor(X, Y, WIDTH, SPEED, DAMAGE) {
+                this.x = X
+                this.y = Y
+                this.width = WIDTH
+                this.speed = SPEED
+                this.damage = DAMAGE
+            }
+
+            update() {
+                this.x += this.speed
+                enemyArray.forEach(element => {
+                    if (this.x + this.width >= element.x) {
+                        element.dealDamage(this.damage)
+                        const index = bulletArray.indexOf(this);
+                        if (index > -1) {
+                            bulletArray.splice(index, 1);
+                        }
+                    }
+                })
+            }
+
+            draw() {
+                ctx.beginPath()
+                ctx.fillStyle = "rgb(0, 0, 0)"
+                ctx.arc(this.x, this.y * 100 + 50, this.width, 0, 2 * Math.PI)
+                ctx.fill()
+            }
+        }
+
+        class enemy {
+            constructor(Y, TYPE, WAIT) {
+                this.x = 1010
+                this.y = Y
+                this.width = 40
+                this.type = TYPE
+                this.wait = WAIT * 1000
+                this.creationTime = Date.now()
+                this.started = false
+                this.speed = 1
+                this.pv = 5
+                switch (this.type) {
+                    case "basic":
+                        this.speed = 1
+                        this.pv = 5
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+
+            dealDamage(DAMAGE) {
+                this.pv -= DAMAGE
+                if (this.pv <= 0) {
+                    const index = enemyArray.indexOf(this);
+                    if (index > -1) {
+                        enemyArray.splice(index, 1);
+                    }
+                }
+            }
+
+            update() {
+                if (this.creationTime < Date.now() - this.wait) {
+                    this.started = true
+                }
+                if (this.started) {
+                    if (this.x > 100) {
+                        this.x -= this.speed
+                    } else {
+                        const index = enemyArray.indexOf(this);
+                        if (index > -1) {
+                            enemyArray.splice(index, 1);
+                        }
+                    }
+                }
+            }
+
+            draw() {
+                if (this.started) {
+                    ctx.beginPath()
+                    ctx.fillStyle = "rgb(254, 0, 0)"
+                    ctx.arc(this.x + this.width / 2, this.y * 100 + 50, this.width / 2, 0, 2 * Math.PI)
+                    ctx.fill()
+                } else {
+                    let timeLeft = Math.abs(Math.floor((Date.now() - this.wait - this.creationTime) / 1000))
+                    let sameLine = false
+                    enemyArray.forEach(element => {
+                        if (element.wait < this.wait && element.y == this.y) {
+                            sameLine = true
+                        }
+                    })
+                    if (timeLeft <= 3 && !sameLine) {
+                        ctx.font = '32px serif'
+                        ctx.fillStyle = "rgb(0, 0, 0)"
+                        ctx.fillText(timeLeft, 970, this.y * 100 + 60)
+                    }
+                }
+            }
+        }
+
+        class shop {
+            constructor(TYPE, PRICE, Y) {
+                this.type = TYPE
+                switch (this.type) {
+                    case "moneyGenerator":
+                        this.width = 60
+                        this.height = 60
+                        break;
+
+                    case "simpleTurret":
+                        this.width = 60
+                        this.height = 60
+                        break;
+
+                    default:
+                        break;
+                }
+                this.originalX = 50 - this.width / 2
+                this.originalY = Y
+                this.x = this.originalX
+                this.y = this.originalY
+                this.price = PRICE
+                this.afordable = false
+                this.selected = false
+            }
+
+            update() {
+                if (money >= this.price) {
+                    this.afordable = true
+                } else {
+                    this.afordable = false
+                }
+                if (!this.selected) {
+                    this.x = this.originalX
+                    this.y = this.originalY
+                }
+            }
+
+            draw() {
+                switch (this.type) {
+                    case "moneyGenerator":
+                        ctx.drawImage(spriteMoneyGenerator, this.x, this.y, this.width, this.height);
+                        break;
+
+                    case "simpleTurret":
+                        ctx.drawImage(spriteSimpleTurret, this.x, this.y, this.width, this.height);
+                        break;
+
+
+                    default:
+                        break;
+                }
+                if (!this.afordable) {
+                    ctx.fillStyle = "rgba(250, 250, 250, .7)"
+                    ctx.fillRect(this.x, this.y, this.width, this.height)
+                }
+            }
+        }
+
+        function gameLoop() {
+            if (moneyTimer + 1000 < Date.now()) {
+                money += addMoney
+                moneyTimer = Date.now()
+            }
+            shopArray.forEach(element => {
+                element.update()
+            })
+            addMoney = 1
+            gameArray.forEach(row => {
+                row.forEach(element => {
+                    element.update()
+                })
+            })
+
+            enemyArray.forEach(element => {
+                element.update()
+            })
+
+            bulletArray.forEach(element => {
+                element.update()
+            })
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            ctx.fillStyle = "rgb(250, 250, 250)"
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+            ctx.fillStyle = "rgb(200, 0, 0)"
+            ctx.fillRect(98, 0, 2, canvas.height)
+            ctx.fillStyle = "rgb(0, 0, 0)"
+            ctx.font = '32px serif'
+            ctx.fillText(money, 50 - money.toString().length * 8, 40)
+            ctx.font = '16px serif'
+            ctx.fillText("+" + addMoney, 50 - (addMoney.toString().length + 1) * 4, 60)
+
+            gameArray.forEach(row => {
+                row.forEach(element => {
+                    element.draw()
+                })
+            })
+
+            enemyArray.forEach(element => {
+                element.draw()
+            })
+
+            bulletArray.forEach(element => {
+                element.draw()
+            })
+
+            shopArray.forEach(element => {
+                element.draw()
+            })
+        }
+
+        var gameArray = []
+
+        for (let i = 0; i < 5; i++) {
+            gameArray.push([])
+            for (let j = 1; j < 10; j++) {
+                gameArray[i][j] = new tile(j * 100, i, ((i + j) % 2 == 1) ? "rgb(250, 250, 250" : "rgb(230, 230, 230")
+            }
+        }
+
+        var shopArray = [
+            new shop("moneyGenerator", 10, 100),
+            new shop("simpleTurret", 20, 200)
+        ]
+
+        var enemyArray = [new enemy(Math.floor(Math.random() * 5), "basic", 0), new enemy(Math.floor(Math.random() * 5), "basic", 25)]
+
+        var bulletArray = []
+
+        var money = 20
+        var addMoney = 1
+        var moneyTimer = Date.now()
+
+        setInterval(gameLoop, 1000 / 60)
+
+        canvas.addEventListener('mousedown', function (event) {
+            var rect = canvas.getBoundingClientRect()
+            var x = event.clientX - rect.left
+            var y = event.clientY - rect.top
+
+            shopArray.forEach(element => {
+                if (x > element.x && x < element.x + element.width && y > element.y && y < element.y + element.height && element.afordable) {
+                    element.selected = true
+                    element.x = x - element.width / 2
+                    element.y = y - element.height / 2
+                }
+            })
+        });
+
+        canvas.addEventListener('mouseup', function (event) {
+            var rect = canvas.getBoundingClientRect()
+            var x = event.clientX - rect.left
+            var y = event.clientY - rect.top
+
+            shopArray.forEach(shopElement => {
+                if (shopElement.selected == true) {
+                    gameArray.forEach(tileRow => {
+                        tileRow.forEach(tileElement => {
+                            if (x > tileElement.x && x < tileElement.x + tileElement.width && y > tileElement.y * 100 && y < tileElement.y * 100 + tileElement.width && shopElement.afordable) {
+                                tileElement.changeType(shopElement.type)
+                                money -= shopElement.price
+                            }
+                        })
+                    })
+                    shopElement.selected = false
+                }
+            })
+        });
+
+        canvas.addEventListener('mousemove', function (event) {
+            var rect = canvas.getBoundingClientRect()
+            var x = event.clientX - rect.left
+            var y = event.clientY - rect.top
+
+            shopArray.forEach(element => {
+                if (element.selected == true) {
+                    element.x = x - element.width / 2
+                    element.y = y - element.height / 2
+                }
+            })
+        });
+
+        canvas.addEventListener('mouseout', function (event) {
+            shopArray.forEach(element => {
+                element.selected = false
+            })
+        });
+
+    </script>
+</body>
+
+</html>
